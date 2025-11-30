@@ -56,7 +56,7 @@
             <!-- Sidebar Menu -->
             <nav>
                 <ul class="sidebar-menu">
-                    {% if user.role == 'admin' or user.role == 'qa' or user.role == 'manager' or user.role == 'supervisor' %}
+                    {% if user.role == 'admin' or user.role == 'qa' or user.role == 'manager' or user.role == 'supervisor' or user.role == 'agent_supervisor' %}
                         <!-- Admin Menu -->
                         <li class="sidebar-menu-item">
                             <a href="{% url 'admin-dashboard' %}" class="sidebar-menu-link {% if request.resolver_match.url_name == 'admin-dashboard' %}active{% endif %}">
@@ -64,12 +64,25 @@
                                 <span class="sidebar-menu-text">{% trans "لوحة التحكم" %}</span>
                             </a>
                         </li>
+                        
+                        {% if user.role == 'supervisor' or user.role == 'agent_supervisor' %}
+                        <li class="sidebar-menu-item">
+                            <a href="{% url 'admin-agent-management' %}" class="sidebar-menu-link {% if request.resolver_match.url_name == 'admin-agent-management' %}active{% endif %}">
+                                <i class="fas fa-users-cog sidebar-menu-icon"></i>
+                                <span class="sidebar-menu-text">{% trans "إدارة الموظفين" %}</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% if user.role != 'supervisor' and user.role != 'agent_supervisor' %}
                         <li class="sidebar-menu-item">
                             <a href="{% url 'admin-agents' %}" class="sidebar-menu-link {% if request.resolver_match.url_name == 'admin-agents' %}active{% endif %}">
                                 <i class="fas fa-users sidebar-menu-icon"></i>
                                 <span class="sidebar-menu-text">Manage Accounts</span>
                             </a>
                         </li>
+                        {% endif %}
+
                         <li class="sidebar-menu-item">
                             <a href="{% url 'admin-customers' %}" class="sidebar-menu-link {% if request.resolver_match.url_name == 'admin-customers' %}active{% endif %}">
                                 <i class="fas fa-user-friends sidebar-menu-icon"></i>
@@ -82,6 +95,8 @@
                                 <span class="sidebar-menu-text">{% trans "جميع التذاكر" %}</span>
                             </a>
                         </li>
+
+                        {% if user.role != 'supervisor' and user.role != 'agent_supervisor' %}
                         <li class="sidebar-menu-item">
                             <a href="{% url 'admin-templates' %}" class="sidebar-menu-link {% if request.resolver_match.url_name == 'admin-templates' %}active{% endif %}">
                                 <i class="fas fa-file-alt sidebar-menu-icon"></i>
@@ -100,6 +115,7 @@
                                 <span class="sidebar-menu-text">{% trans "الإعدادات" %}</span>
                             </a>
                         </li>
+                        {% endif %}
                     {% else %}
                         <!-- Agent Menu -->
                         <li class="sidebar-menu-item">

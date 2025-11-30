@@ -7,13 +7,35 @@
 
 {% block content %}
 
+<!-- Welcome Message Section -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">
+        <i class="fas fa-hand-sparkles"></i> {% trans "Automatic Welcome Message" %}
+    </h4>
+    <button class="btn btn-primary" onclick="openWelcomeMessageModal()">
+        <i class="fas fa-edit"></i> {% trans "Edit Message" %}
+    </button>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="alert alert-info mb-3">
+            <i class="fas fa-info-circle"></i> {% trans "This message is automatically sent to new customers when they start a conversation for the first time." %}
+        </div>
+        <div class="p-3 bg-light rounded border" id="currentWelcomeMessage" style="white-space: pre-wrap;">
+            <!-- Message content will be loaded here -->
+            {% trans "Loading..." %}
+        </div>
+    </div>
+</div>
+
 <!-- Header -->
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="mb-0">
-        <i class="fas fa-file-alt"></i> {% trans "القوالب العامة" %}
+        <i class="fas fa-file-alt"></i> {% trans "Global Templates" %}
     </h4>
     <button class="btn btn-primary" onclick="openModal('addTemplateModal')">
-        <i class="fas fa-plus"></i> {% trans "إضافة قالب جديد" %}
+        <i class="fas fa-plus"></i> {% trans "Add New Template" %}
     </button>
 </div>
 
@@ -25,7 +47,16 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-3">
                     <h5 class="card-title mb-0">{{ template.name }}</h5>
-                    <span class="badge bg-primary">{{ template.category }}</span>
+                    <div class="d-flex gap-2">
+                        <span class="badge bg-primary">{{ template.category }}</span>
+                        {% if template.priority == 'high' %}
+                            <span class="badge bg-danger">{% trans "عالية" %}</span>
+                        {% elif template.priority == 'low' %}
+                            <span class="badge bg-secondary">{% trans "منخفضة" %}</span>
+                        {% else %}
+                            <span class="badge bg-info">{% trans "عادية" %}</span>
+                        {% endif %}
+                    </div>
                 </div>
                 <p class="card-text text-muted" style="min-height: 80px;">{{ template.content|truncatewords:20 }}</p>
                 <div class="d-flex justify-content-between align-items-center">
@@ -90,6 +121,14 @@
                         </select>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">{% trans "الأولوية" %} *</label>
+                        <select class="form-select" name="priority" required>
+                            <option value="normal" selected>{% trans "عادية" %}</option>
+                            <option value="high">{% trans "عالية" %}</option>
+                            <option value="low">{% trans "منخفضة" %}</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">{% trans "المحتوى" %} *</label>
                         <textarea class="form-control" name="content" rows="5" required></textarea>
                         <small class="text-muted">{% trans "يمكنك استخدام {name} للإشارة لاسم الموظف المرسل" %}</small>
@@ -137,6 +176,14 @@
                         </select>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">{% trans "الأولوية" %} *</label>
+                        <select class="form-select" name="priority" id="editTemplatePriority" required>
+                            <option value="normal">{% trans "عادية" %}</option>
+                            <option value="high">{% trans "عالية" %}</option>
+                            <option value="low">{% trans "منخفضة" %}</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">{% trans "المحتوى" %} *</label>
                         <textarea class="form-control" name="content" id="editTemplateContent" rows="5" required></textarea>
                         <small class="text-muted">{% trans "يمكنك استخدام {name} للإشارة لاسم الموظف المرسل" %}</small>
@@ -149,6 +196,37 @@
                 </button>
                 <button type="button" class="btn btn-warning" onclick="submitEditTemplate()">
                     <i class="fas fa-save"></i> {% trans "حفظ التعديلات" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Welcome Message Modal -->
+<div class="modal" id="editWelcomeMessageModal" style="display: none;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit"></i> {% trans "Edit Welcome Message" %}
+                </h5>
+                <button type="button" class="btn-close" onclick="closeModal('editWelcomeMessageModal')"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editWelcomeMessageForm">
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "Message Text" %} *</label>
+                        <textarea class="form-control" name="welcome_message" id="welcomeMessageInput" rows="10" required></textarea>
+                        <small class="text-muted">{% trans "This message will appear to the customer exactly as written here." %}</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editWelcomeMessageModal')">
+                    <i class="fas fa-times"></i> {% trans "Cancel" %}
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveWelcomeMessage()">
+                    <i class="fas fa-save"></i> {% trans "Save Changes" %}
                 </button>
             </div>
         </div>
@@ -203,6 +281,64 @@
 
 {% block extra_js %}
 <script>
+    // Welcome Message Functions
+    async function loadWelcomeMessage() {
+        try {
+            const response = await fetch('/api/settings/', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': khalifaPharmacy.getCookie('csrftoken')
+                }
+            });
+            
+            if (response.ok) {
+                const settings = await response.json();
+                document.getElementById('currentWelcomeMessage').textContent = settings.welcome_message;
+                document.getElementById('welcomeMessageInput').value = settings.welcome_message;
+            }
+        } catch (error) {
+            console.error('Error loading welcome message:', error);
+        }
+    }
+
+    function openWelcomeMessageModal() {
+        openModal('editWelcomeMessageModal');
+    }
+
+    async function saveWelcomeMessage() {
+        const message = document.getElementById('welcomeMessageInput').value;
+        
+        try {
+            const response = await fetch('/api/settings/1/', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': khalifaPharmacy.getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    welcome_message: message
+                })
+            });
+            
+            if (response.ok) {
+                khalifaPharmacy.showToast('{% trans "Welcome message updated successfully" %}', 'success');
+                closeModal('editWelcomeMessageModal');
+                loadWelcomeMessage(); // Reload to show changes
+            } else {
+                throw new Error('Failed to update');
+            }
+        } catch (error) {
+            console.error('Error saving welcome message:', error);
+            khalifaPharmacy.showToast('{% trans "Error saving message" %}', 'error');
+        }
+    }
+
+    // Load on startup
+    document.addEventListener('DOMContentLoaded', function() {
+        loadWelcomeMessage();
+    });
+
     // Modal Functions
     function openModal(modalId) {
         const modal = document.getElementById(modalId);
@@ -326,6 +462,7 @@
             document.getElementById('editTemplateId').value = template.id;
             document.getElementById('editTemplateTitle').value = template.name;
             document.getElementById('editTemplateCategory').value = template.category;
+            document.getElementById('editTemplatePriority').value = template.priority || 'normal';
             document.getElementById('editTemplateContent').value = template.content;
 
             // فتح modal التعديل
@@ -359,6 +496,7 @@
                     name: formData.get('title'),
                     content: formData.get('content'),
                     category: formData.get('category'),
+                    priority: formData.get('priority'),
                     is_active: true
                 })
             });
@@ -368,7 +506,10 @@
                 closeModal('editTemplateModal');
                 form.reset();
                 // إعادة تحميل الصفحة
-                setTimeout(() => location.reload(), 1000);
+                setTimeout(() => {
+                    window.scrollTo(0, 0);
+                    location.reload();
+                }, 1000);
             } else {
                 const data = await response.json();
                 const errorMsg = data.error || data.detail || 'حدث خطأ أثناء تعديل القالب';
@@ -395,7 +536,10 @@
 
             if (response.ok) {
                 khalifaPharmacy.showToast('تم حذف القالب بنجاح', 'success');
-                setTimeout(() => location.reload(), 1000);
+                setTimeout(() => {
+                    window.scrollTo(0, 0);
+                    location.reload();
+                }, 1000);
             } else {
                 khalifaPharmacy.showToast('حدث خطأ أثناء حذف القالب', 'error');
             }
@@ -426,6 +570,7 @@
                     name: formData.get('title'),
                     content: formData.get('content'),
                     category: formData.get('category'),
+                    priority: formData.get('priority'),
                     is_active: true
                 })
             });
@@ -437,7 +582,10 @@
                 closeModal('addTemplateModal');
                 form.reset();
                 // إعادة تحميل الصفحة
-                setTimeout(() => location.reload(), 1000);
+                setTimeout(() => {
+                    window.scrollTo(0, 0);
+                    location.reload();
+                }, 1000);
             } else {
                 const errorMsg = data.error || data.detail || 'حدث خطأ أثناء إضافة القالب';
                 khalifaPharmacy.showToast(errorMsg, 'error');

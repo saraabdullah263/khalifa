@@ -18,19 +18,13 @@
         </button>
         <div class="dropdown-menu" aria-labelledby="addAccountDropdown">
             <a class="dropdown-item" href="javascript:void(0);" onclick="openAddAccountModal('agent')">
-                <i class="fas fa-headset"></i> Account
+                <i class="fas fa-headset"></i> Agent
             </a>
-            <a class="dropdown-item" href="javascript:void(0);" onclick="openAddAccountModal('admin')">
-                <i class="fas fa-user-shield"></i> Admin
-            </a>
-            <a class="dropdown-item" href="javascript:void(0);" onclick="openAddAccountModal('qa')">
-                <i class="fas fa-clipboard-check"></i> QA (Quality Assurance)
+            <a class="dropdown-item" href="javascript:void(0);" onclick="openAddAccountModal('agent_supervisor')">
+                <i class="fas fa-user-tie"></i> Agent Supervisor
             </a>
             <a class="dropdown-item" href="javascript:void(0);" onclick="openAddAccountModal('supervisor')">
                 <i class="fas fa-user-tie"></i> Supervisor
-            </a>
-            <a class="dropdown-item" href="javascript:void(0);" onclick="openAddAccountModal('manager')">
-                <i class="fas fa-user-cog"></i> Manager
             </a>
         </div>
     </div>
@@ -51,10 +45,10 @@
             </div>
             <div class="col-md-4">
                 <select class="form-select" id="availabilityFilter" onchange="filterAgents()">
-                    <option value="">{% trans "جميع الحالات" %}</option>
-                    <option value="available">{% trans "متاح" %} (Available)</option>
-                    <option value="busy">{% trans "مشغول" %} (Busy)</option>
-                    <option value="offline">{% trans "غير متصل" %} (Offline)</option>
+                    <option value="">{% trans "All Statuses" %}</option>
+                    <option value="available">{% trans "Available" %}</option>
+                    <option value="busy">{% trans "Busy" %}</option>
+                    <option value="offline">{% trans "Offline" %}</option>
                     <option value="on_break">On Break</option>
                 </select>
             </div>
@@ -69,17 +63,17 @@
             <table class="table table-hover mb-0" id="agentsTable">
                 <thead>
                     <tr>
-                        <th>{% trans "الموظف" %}</th>
-                        <th>{% trans "البريد الإلكتروني" %}</th>
-                        <th>{% trans "الهاتف" %}</th>
-                        <th>{% trans "السعة" %}</th>
-                        <th>{% trans "التذاكر الحالية" %}</th>
-                        <th>{% trans "الإجراءات" %}</th>
+                        <th>{% trans "Agent" %}</th>
+                        <th>{% trans "Email" %}</th>
+                        <th>{% trans "Phone" %}</th>
+                        <th>{% trans "Capacity" %}</th>
+                        <th>{% trans "Current Tickets" %}</th>
+                        <th>{% trans "Actions" %}</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for agent in agents %}
-                    <tr data-status="{% if agent.is_active %}active{% else %}inactive{% endif %}" data-availability="{% if agent.role == 'agent' and agent.agent_data %}{{ agent.agent_data.status }}{% else %}N/A{% endif %}">
+                    <tr data-status="{% if agent.is_active %}active{% else %}inactive{% endif %}" data-availability="{% if agent.role == 'agent' and agent.agent_data %}{{ agent.agent_data.status }}{% else %}N/A{% endif %}" {% if agent.role == 'agent' and agent.agent_data %}data-agent-id="{{ agent.agent_data.id }}"{% endif %}>
                         <td>
                             <div class="d-flex align-items-center">
                                 <div class="avatar-md bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">
@@ -89,6 +83,7 @@
                                     <div class="fw-bold">
                                         {{ agent.full_name|default:agent.username }}
                                         {% if agent.role == 'agent' and agent.agent_data %}
+                                            <span id="status-badge-{{ agent.agent_data.id }}">
                                             {% if agent.agent_data.is_online and agent.agent_data.status == 'available' %}
                                                 <span class="badge badge-online ms-2">
                                                     <i class="fas fa-circle"></i> Online
@@ -98,10 +93,11 @@
                                                     <i class="fas fa-circle"></i> Busy
                                                 </span>
                                             {% else %}
-                                                <span class="badge badge-offline ms-2">
-                                                    <i class="fas fa-circle"></i> Offline
+                                                <span class="badge badge-offline ms-2" style="background-color: #6c757d; color: white; border-radius: 12px; padding: 4px 10px; font-size: 11px;">
+                                                    <i class="fas fa-circle fa-xs me-1"></i> Offline
                                                 </span>
                                             {% endif %}
+                                            </span>
                                         {% else %}
                                             <span class="badge bg-info text-white ms-2">
                                                 <i class="fas fa-user-shield"></i> {{ agent.get_role_display }}
@@ -123,7 +119,7 @@
                         </td>
                         <td>
                             {% if agent.role == 'agent' and agent.agent_data %}
-                                <span class="fw-bold">{{ agent.agent_data.current_active_tickets }}</span>
+                                <span class="fw-bold" id="tickets-count-{{ agent.agent_data.id }}">{{ agent.agent_data.current_active_tickets }}</span>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
@@ -158,7 +154,7 @@
                     <tr>
                         <td colspan="6" class="text-center text-muted py-5">
                             <i class="fas fa-users fa-3x mb-3 d-block"></i>
-                            {% trans "لا يوجد موظفون حالياً" %}
+                            {% trans "No agents found" %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -190,42 +186,79 @@
                     
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label">{% trans "اسم المستخدم" %} *</label>
+                            <label class="form-label">{% trans "Username" %} *</label>
                             <input type="text" class="form-control" name="username" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">{% trans "كلمة المرور" %} *</label>
+                            <label class="form-label">{% trans "Password" %} *</label>
                             <input type="password" class="form-control" name="password" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">{% trans "الاسم الأول" %} *</label>
+                            <label class="form-label">{% trans "First Name" %} *</label>
                             <input type="text" class="form-control" name="first_name" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">{% trans "الاسم الأخير" %} *</label>
+                            <label class="form-label">{% trans "Last Name" %} *</label>
                             <input type="text" class="form-control" name="last_name" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">{% trans "البريد الإلكتروني" %}</label>
+                            <label class="form-label">{% trans "Email" %}</label>
                             <input type="email" class="form-control" name="email">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">{% trans "رقم الهاتف" %}</label>
+                            <label class="form-label">{% trans "Phone Number" %}</label>
                             <input type="tel" class="form-control" name="phone">
                         </div>
                         
                         <!-- Max Capacity - Only for Account role -->
                         <div class="col-md-6" id="maxCapacityField">
-                            <label class="form-label">{% trans "السعة القصوى" %} *</label>
+                            <label class="form-label">{% trans "Max Capacity" %} *</label>
                             <input type="number" class="form-control" name="max_capacity" id="maxCapacityInput" value="10" min="1">
-                            <small class="text-muted" id="maxCapacityHint">الحد الأقصى المسموح: <span id="maxCapacityLimit">10</span></small>
+                            <small class="text-muted" id="maxCapacityHint">Max allowed: <span id="maxCapacityLimit">10</span></small>
                         </div>
                         
+                        <!-- Agent Permissions Checkboxes -->
+                        <div class="col-12" id="agentPermissionsField" style="display: none;">
+                            <label class="form-label fw-bold">{% trans "Agent Permissions" %}</label>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="perm_no_choice" id="perm_no_choice">
+                                        <label class="form-check-label" for="perm_no_choice">No choice</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="perm_consultation" id="perm_consultation">
+                                        <label class="form-check-label" for="perm_consultation">Consultation</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="perm_complaint" id="perm_complaint">
+                                        <label class="form-check-label" for="perm_complaint">Complaint</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="perm_medicine" id="perm_medicine">
+                                        <label class="form-check-label" for="perm_medicine">Medicine</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="perm_follow_up" id="perm_follow_up">
+                                        <label class="form-check-label" for="perm_follow_up">Follow up</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="col-md-6">
-                            <label class="form-label">{% trans "الحالة" %}</label>
+                            <label class="form-label">{% trans "Status" %}</label>
                             <select class="form-select" name="is_active">
-                                <option value="true">{% trans "نشط" %}</option>
-                                <option value="false">{% trans "غير نشط" %}</option>
+                                <option value="true">{% trans "Active" %}</option>
+                                <option value="false">{% trans "Inactive" %}</option>
                             </select>
                         </div>
                     </div>
@@ -233,10 +266,10 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('addAgentModal')">
-                    <i class="fas fa-times"></i> {% trans "إلغاء" %}
+                    <i class="fas fa-times"></i> {% trans "Cancel" %}
                 </button>
                 <button type="button" class="btn btn-primary" onclick="submitAddAgent()">
-                    <i class="fas fa-save"></i> {% trans "حفظ" %}
+                    <i class="fas fa-save"></i> {% trans "Save" %}
                 </button>
             </div>
         </div>
@@ -249,7 +282,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="fas fa-key"></i> {% trans "إعادة تعيين كلمة المرور" %}
+                    <i class="fas fa-key"></i> {% trans "Reset Password" %}
                 </h5>
                 <button type="button" class="btn-close" onclick="closeModal('resetPasswordModal')"></button>
             </div>
@@ -257,26 +290,26 @@
                 <form id="resetPasswordForm">
                     <input type="hidden" id="resetAgentId" name="agent_id">
                     <div class="mb-3">
-                        <label class="form-label fw-bold">{% trans "اسم الموظف" %}:</label>
+                        <label class="form-label fw-bold">{% trans "Agent Name" %}:</label>
                         <p id="resetAgentName" class="text-muted"></p>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">{% trans "كلمة المرور الجديدة" %} *</label>
-                        <input type="password" class="form-control" id="newPassword" name="new_password" required minlength="6" placeholder="{% trans 'أدخل كلمة المرور الجديدة' %}">
-                        <small class="text-muted">{% trans "يجب أن تكون كلمة المرور على الأقل 6 أحرف" %}</small>
+                        <label class="form-label">{% trans "New Password" %} *</label>
+                        <input type="password" class="form-control" id="newPassword" name="new_password" required minlength="6" placeholder="{% trans 'Enter new password' %}">
+                        <small class="text-muted">{% trans "Password must be at least 6 characters" %}</small>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">{% trans "تأكيد كلمة المرور" %} *</label>
-                        <input type="password" class="form-control" id="confirmPassword" name="confirm_password" required minlength="6" placeholder="{% trans 'أعد إدخال كلمة المرور' %}">
+                        <label class="form-label">{% trans "Confirm Password" %} *</label>
+                        <input type="password" class="form-control" id="confirmPassword" name="confirm_password" required minlength="6" placeholder="{% trans 'Re-enter password' %}">
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('resetPasswordModal')">
-                    <i class="fas fa-times"></i> {% trans "إلغاء" %}
+                    <i class="fas fa-times"></i> {% trans "Cancel" %}
                 </button>
                 <button type="button" class="btn btn-danger" onclick="submitResetPassword()">
-                    <i class="fas fa-key"></i> {% trans "تغيير كلمة المرور" %}
+                    <i class="fas fa-key"></i> {% trans "Change Password" %}
                 </button>
             </div>
         </div>
@@ -453,11 +486,12 @@
     // Open Add Account Modal with specific role
     function openAddAccountModal(role) {
         const roleNames = {
-            'agent': 'Account',
+            'agent': 'Agent',
             'admin': 'Admin',
             'qa': 'QA (Quality Assurance)',
             'supervisor': 'Supervisor',
-            'manager': 'Manager'
+            'manager': 'Manager',
+            'agent_supervisor': 'Agent Supervisor'
         };
         
         const roleIcons = {
@@ -465,7 +499,8 @@
             'admin': 'fa-user-shield',
             'qa': 'fa-clipboard-check',
             'supervisor': 'fa-user-tie',
-            'manager': 'fa-user-cog'
+            'manager': 'fa-user-cog',
+            'agent_supervisor': 'fa-user-tie'
         };
         
         // Open modal first
@@ -493,15 +528,18 @@
             // Show/hide max capacity field based on role
             const maxCapacityField = document.getElementById('maxCapacityField');
             const maxCapacityInput = document.getElementById('maxCapacityInput');
+            const agentPermissionsField = document.getElementById('agentPermissionsField');
             
             if (maxCapacityField && maxCapacityInput) {
                 if (role === 'agent') {
                     maxCapacityField.style.display = 'block';
                     maxCapacityInput.required = true;
+                    if (agentPermissionsField) agentPermissionsField.style.display = 'block';
                 } else {
                     maxCapacityField.style.display = 'none';
                     maxCapacityInput.required = false;
                     maxCapacityInput.value = '0';
+                    if (agentPermissionsField) agentPermissionsField.style.display = 'none';
                 }
             }
         }, 100);
@@ -560,13 +598,13 @@
         const max_capacity = formData.get('max_capacity');
 
         if (!username || !password || !first_name || !last_name) {
-            khalifaPharmacy.showToast('يرجى ملء جميع الحقول المطلوبة', 'error');
+            khalifaPharmacy.showToast('Please fill all required fields', 'error');
             return;
         }
         
         // Validate max_capacity only for agents
         if (role === 'agent' && !max_capacity) {
-            khalifaPharmacy.showToast('يرجى تحديد السعة القصوى للموظف', 'error');
+            khalifaPharmacy.showToast('Please specify max capacity for the agent', 'error');
             return;
         }
 
@@ -578,7 +616,7 @@
                 const defaultMaxCapacity = settingsData?.default_max_capacity || 10;
                 
                 if (parseInt(max_capacity) > defaultMaxCapacity) {
-                    khalifaPharmacy.showToast(`السعة القصوى لا يمكن أن تتجاوز ${defaultMaxCapacity} (الحد الأقصى المسموح)`, 'error');
+                    khalifaPharmacy.showToast(`Max capacity cannot exceed ${defaultMaxCapacity} (Max allowed)`, 'error');
                     return;
                 }
             } catch (error) {
@@ -602,7 +640,13 @@
                     phone: formData.get('phone') || '',
                     role: role,  // ✅ إضافة الدور
                     max_capacity: role === 'agent' ? (parseInt(max_capacity) || 10) : 0,
-                    is_active: formData.get('is_active') === 'true'
+                    is_active: formData.get('is_active') === 'true',
+                    // ✅ إضافة الصلاحيات
+                    perm_no_choice: document.getElementById('perm_no_choice').checked,
+                    perm_consultation: document.getElementById('perm_consultation').checked,
+                    perm_complaint: document.getElementById('perm_complaint').checked,
+                    perm_medicine: document.getElementById('perm_medicine').checked,
+                    perm_follow_up: document.getElementById('perm_follow_up').checked
                 })
             });
 
@@ -610,23 +654,24 @@
 
             if (data.success) {
                 const roleNames = {
-                    'agent': 'الموظف',
-                    'admin': 'المدير',
-                    'qa': 'مراقب الجودة',
-                    'supervisor': 'المشرف',
-                    'manager': 'المدير العام'
+                    'agent': 'Agent',
+                    'admin': 'Admin',
+                    'qa': 'QA',
+                    'supervisor': 'Supervisor',
+                    'manager': 'Manager',
+                    'agent_supervisor': 'Agent Supervisor'
                 };
-                khalifaPharmacy.showToast(data.message || `تم إضافة ${roleNames[role]} بنجاح`, 'success');
+                khalifaPharmacy.showToast(data.message || `${roleNames[role]} added successfully`, 'success');
                 closeModal('addAgentModal');
                 form.reset();
                 // إعادة تحميل الصفحة
                 setTimeout(() => location.reload(), 1000);
             } else {
-                khalifaPharmacy.showToast(data.error || 'حدث خطأ أثناء إضافة الحساب', 'error');
+                khalifaPharmacy.showToast(data.error || 'Error adding account', 'error');
             }
         } catch (error) {
             console.error('Error:', error);
-            khalifaPharmacy.showToast('حدث خطأ في الاتصال بالخادم', 'error');
+            khalifaPharmacy.showToast('Server connection error', 'error');
         }
     }
 
@@ -836,9 +881,9 @@
     }
 
     async function toggleAgentStatus(agentId, newStatus) {
-        const action = newStatus ? 'تفعيل' : 'تعطيل';
+        const action = newStatus ? 'activate' : 'deactivate';
 
-        if (!confirm(`هل أنت متأكد من ${action} هذا الموظف؟`)) {
+        if (!confirm(`Are you sure you want to ${action} this agent?`)) {
             return;
         }
 
@@ -857,14 +902,14 @@
             const data = await response.json();
 
             if (data.success) {
-                khalifaPharmacy.showToast(data.message || `تم ${action} الموظف بنجاح`, 'success');
+                khalifaPharmacy.showToast(data.message || `Agent ${action}d successfully`, 'success');
                 setTimeout(() => location.reload(), 1000);
             } else {
-                khalifaPharmacy.showToast(data.error || `حدث خطأ أثناء ${action} الموظف`, 'error');
+                khalifaPharmacy.showToast(data.error || `Error ${action}ing agent`, 'error');
             }
         } catch (error) {
             console.error('Error:', error);
-            khalifaPharmacy.showToast('حدث خطأ في الاتصال بالخادم', 'error');
+            khalifaPharmacy.showToast('Server connection error', 'error');
         }
     }
 
@@ -882,19 +927,19 @@
         const newPassword = document.getElementById('newPassword').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
 
-        // التحقق من البيانات
+        // Validate data
         if (!newPassword) {
-            khalifaPharmacy.showToast('يرجى إدخال كلمة المرور الجديدة', 'error');
+            khalifaPharmacy.showToast('Please enter new password', 'error');
             return;
         }
 
         if (newPassword.length < 6) {
-            khalifaPharmacy.showToast('كلمة المرور يجب أن تكون على الأقل 6 أحرف', 'error');
+            khalifaPharmacy.showToast('Password must be at least 6 characters', 'error');
             return;
         }
 
         if (newPassword !== confirmPassword) {
-            khalifaPharmacy.showToast('كلمة المرور وتأكيد كلمة المرور غير متطابقين', 'error');
+            khalifaPharmacy.showToast('Passwords do not match', 'error');
             return;
         }
 
@@ -913,15 +958,15 @@
             const data = await response.json();
 
             if (data.success) {
-                khalifaPharmacy.showToast(data.message || 'تم تغيير كلمة المرور بنجاح', 'success');
+                khalifaPharmacy.showToast(data.message || 'Password changed successfully', 'success');
                 closeModal('resetPasswordModal');
                 document.getElementById('resetPasswordForm').reset();
             } else {
-                khalifaPharmacy.showToast(data.error || 'حدث خطأ أثناء تغيير كلمة المرور', 'error');
+                khalifaPharmacy.showToast(data.error || 'Error changing password', 'error');
             }
         } catch (error) {
             console.error('Error:', error);
-            khalifaPharmacy.showToast('حدث خطأ في الاتصال بالخادم', 'error');
+            khalifaPharmacy.showToast('Server connection error', 'error');
         }
     }
 
@@ -1133,14 +1178,13 @@
             });
         });
         
-        // ✅ Auto-refresh every 60 seconds
-        let autoRefreshInterval;
-        let autoRefreshEnabled = true;
-        let countdown = 60;
+        // ✅ Real-time Status Updates
+        let statusUpdateInterval;
+        let updatesEnabled = true;
         
-        // Create auto-refresh indicator
+        // Create status indicator
         const refreshIndicator = document.createElement('div');
-        refreshIndicator.id = 'autoRefreshIndicator';
+        refreshIndicator.id = 'statusIndicator';
         refreshIndicator.style.cssText = `
             position: fixed;
             top: 60px;
@@ -1157,9 +1201,9 @@
             gap: 6px;
         `;
         refreshIndicator.innerHTML = `
-            <i class="fas fa-sync-alt" style="font-size: 10px;"></i>
-            <span id="refreshCountdown" style="font-size: 10px;">ON (60s)</span>
-            <button id="toggleAutoRefresh" style="
+            <i class="fas fa-sync-alt fa-spin" style="font-size: 10px;"></i>
+            <span id="statusText" style="font-size: 10px;">Live Updates</span>
+            <button id="toggleUpdates" style="
                 background: rgba(255,255,255,0.3);
                 border: none;
                 color: white;
@@ -1172,46 +1216,79 @@
         `;
         document.body.appendChild(refreshIndicator);
         
-        const countdownElement = document.getElementById('refreshCountdown');
-        const toggleButton = document.getElementById('toggleAutoRefresh');
+        const toggleButton = document.getElementById('toggleUpdates');
+        const statusIcon = refreshIndicator.querySelector('.fa-sync-alt');
         
-        // Toggle auto-refresh
+        // Toggle updates
         toggleButton.addEventListener('click', function() {
-            autoRefreshEnabled = !autoRefreshEnabled;
-            if (autoRefreshEnabled) {
+            updatesEnabled = !updatesEnabled;
+            if (updatesEnabled) {
                 toggleButton.textContent = 'OFF';
                 refreshIndicator.style.background = '#28a745';
-                countdown = 60;
-                startAutoRefresh();
+                statusIcon.classList.add('fa-spin');
+                startStatusUpdates();
             } else {
                 toggleButton.textContent = 'ON';
                 refreshIndicator.style.background = '#6c757d';
-                clearInterval(autoRefreshInterval);
-                countdownElement.textContent = 'OFF';
+                statusIcon.classList.remove('fa-spin');
+                clearInterval(statusUpdateInterval);
             }
         });
         
-        // Start auto-refresh
-        function startAutoRefresh() {
-            if (autoRefreshInterval) {
-                clearInterval(autoRefreshInterval);
-            }
+        async function fetchAgentStatuses() {
+            if (!updatesEnabled) return;
             
-            autoRefreshInterval = setInterval(function() {
-                if (autoRefreshEnabled) {
-                    countdown--;
-                    countdownElement.textContent = `ON (${countdown}s)`;
-                    
-                    if (countdown <= 0) {
-                        // Refresh the page
-                        location.reload();
+            try {
+                const response = await fetch('/api/agents/status_list/');
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const agents = await response.json();
+                
+                agents.forEach(agent => {
+                    // Update Status Badge
+                    const badgeContainer = document.getElementById(`status-badge-${agent.id}`);
+                    if (badgeContainer) {
+                        if (agent.status === 'offline') {
+                            badgeContainer.innerHTML = `
+                                <span class="badge badge-offline ms-2" style="background-color: #6c757d; color: white; border-radius: 12px; padding: 4px 10px; font-size: 11px;">
+                                    <i class="fas fa-circle fa-xs me-1"></i> Offline
+                                </span>
+                            `;
+                        } else {
+                            badgeContainer.innerHTML = `
+                                <span class="badge ${agent.status_class} ms-2">
+                                    <i class="fas fa-circle"></i> ${agent.status_display}
+                                </span>
+                            `;
+                        }
                     }
-                }
-            }, 1000);
+                    
+                    // Update Tickets Count
+                    const ticketsElement = document.getElementById(`tickets-count-${agent.id}`);
+                    if (ticketsElement) {
+                        ticketsElement.textContent = agent.current_active_tickets;
+                    }
+                    
+                    // Update Row Attributes (for filtering)
+                    const row = document.querySelector(`tr[data-agent-id="${agent.id}"]`);
+                    if (row) {
+                        row.setAttribute('data-availability', agent.status);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error fetching agent statuses:', error);
+            }
+        }
+        
+        function startStatusUpdates() {
+            if (statusUpdateInterval) clearInterval(statusUpdateInterval);
+            fetchAgentStatuses(); // Initial fetch
+            statusUpdateInterval = setInterval(fetchAgentStatuses, 5000); // Poll every 5 seconds
         }
         
         // Start on page load
-        startAutoRefresh();
+        startStatusUpdates();
     });
 </script>
 {% endblock %}

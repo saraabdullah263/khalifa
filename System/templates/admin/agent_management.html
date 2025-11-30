@@ -1,0 +1,406 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}Agent Management{% endblock %}
+{% block page_title %}Agent Management{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <div class="card-header bg-white py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-users-cog text-primary me-2"></i> Daily Agent Activity Monitoring
+            </h5>
+            <div class="text-muted small">
+                {% now "Y-m-d" %}
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th>Agent</th>
+                        <th>Status</th>
+                        <th>Login Time</th>
+                        <th>Logout Time</th>
+                        <th>Breaks</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in agents_data %}
+                    <tr id="agent-row-{{ item.agent.id }}">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 35px; height: 35px;">
+                                    {{ item.agent.user.full_name|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <div class="fw-bold">{{ item.agent.user.full_name }}</div>
+                                    <small class="text-muted">@{{ item.agent.user.username }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td id="status-cell-{{ item.agent.id }}">
+                            {% if item.agent.is_online %}
+                                {% if item.agent.status == 'available' %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-circle fa-xs me-1"></i> Online
+                                    </span>
+                                {% elif item.agent.status == 'busy' %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-circle fa-xs me-1"></i> Busy
+                                    </span>
+                                {% elif item.agent.status == 'on_break' %}
+                                    <span class="badge bg-info text-dark">
+                                        <i class="fas fa-coffee me-1"></i> On Break
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-circle fa-xs me-1"></i> {{ item.agent.status }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge badge-offline" style="background-color: #6c757d; color: white; border-radius: 12px; padding: 4px 10px; font-size: 11px;">
+                                    <i class="fas fa-circle fa-xs me-1"></i> Offline
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td id="login-time-{{ item.agent.id }}">
+                            {% if item.login_time %}
+                                {{ item.login_time|date:"h:i A" }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td id="logout-time-{{ item.agent.id }}">
+                            {% if item.logout_time %}
+                                {{ item.logout_time|date:"h:i A" }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td id="breaks-cell-{{ item.agent.id }}">
+                            {% if item.breaks %}
+                                <div class="d-flex flex-column gap-1">
+                                    {% for break in item.breaks %}
+                                        <small class="{% if break.is_active %}text-primary fw-bold{% else %}text-muted{% endif %}">
+                                            <i class="fas fa-clock fa-xs"></i> 
+                                            {{ break.start|date:"h:i A" }} 
+                                            {% if break.end %}
+                                                - {{ break.end|date:"h:i A" }} ({{ break.duration }}m)
+                                            {% else %}
+                                                - Now ({{ break.duration }}m)
+                                            {% endif %}
+                                        </small>
+                                    {% endfor %}
+                                    <div class="border-top mt-1 pt-1">
+                                        <small class="fw-bold">Total: {{ item.total_break_minutes }}m</small>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td id="actions-cell-{{ item.agent.id }}">
+                            <div class="btn-group btn-group-sm">
+                                {% if item.agent.is_online %}
+                                    <button class="btn btn-outline-danger" onclick="forceLogout({{ item.agent.id }}, '{{ item.agent.user.full_name }}')" title="Force Logout">
+                                        <i class="fas fa-sign-out-alt"></i> Logout
+                                    </button>
+                                    
+                                    {% if not item.agent.is_on_break %}
+                                        <button class="btn btn-outline-info" onclick="forceBreak({{ item.agent.id }}, '{{ item.agent.user.full_name }}')" title="Force Break">
+                                            <i class="fas fa-coffee"></i> Break
+                                        </button>
+                                    {% else %}
+                                        <button class="btn btn-outline-success" onclick="endBreak({{ item.agent.id }}, '{{ item.agent.user.full_name }}')" title="End Break">
+                                            <i class="fas fa-play"></i> End Break
+                                        </button>
+                                    {% endif %}
+                                {% else %}
+                                    <button class="btn btn-outline-secondary" disabled>
+                                        <i class="fas fa-ban"></i> Offline
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            No agents found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function forceLogout(agentId, agentName) {
+        if (!confirm(`Are you sure you want to force logout ${agentName}?`)) return;
+        
+        try {
+            const response = await fetch(`/api/agents/${agentId}/force_logout/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': khalifaPharmacy.getCookie('csrftoken')
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                khalifaPharmacy.showToast(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                khalifaPharmacy.showToast(data.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            khalifaPharmacy.showToast('Connection error', 'error');
+        }
+    }
+
+    async function forceBreak(agentId, agentName) {
+        if (!confirm(`Are you sure you want to start a break for ${agentName}?`)) return;
+        
+        try {
+            const response = await fetch(`/api/agents/${agentId}/take_break/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': khalifaPharmacy.getCookie('csrftoken')
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                khalifaPharmacy.showToast(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                khalifaPharmacy.showToast(data.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            khalifaPharmacy.showToast('Connection error', 'error');
+        }
+    }
+
+    async function endBreak(agentId, agentName) {
+        if (!confirm(`Are you sure you want to end break for ${agentName}?`)) return;
+        
+        try {
+            const response = await fetch(`/api/agents/${agentId}/end_break/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': khalifaPharmacy.getCookie('csrftoken')
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                khalifaPharmacy.showToast(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                khalifaPharmacy.showToast(data.error, 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            khalifaPharmacy.showToast('Connection error', 'error');
+        }
+    }
+
+    // ✅ Real-time Activity Updates
+    document.addEventListener('DOMContentLoaded', function() {
+        let activityUpdateInterval;
+        let updatesEnabled = true;
+        
+        // Create status indicator
+        const refreshIndicator = document.createElement('div');
+        refreshIndicator.id = 'activityStatusIndicator';
+        refreshIndicator.style.cssText = `
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            z-index: 1000;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        `;
+        refreshIndicator.innerHTML = `
+            <i class="fas fa-sync-alt fa-spin" style="font-size: 10px;"></i>
+            <span id="activityStatusText" style="font-size: 10px;">Live Updates</span>
+            <button id="toggleActivityUpdates" style="
+                background: rgba(255,255,255,0.3);
+                border: none;
+                color: white;
+                padding: 1px 6px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 9px;
+                font-weight: bold;
+            ">OFF</button>
+        `;
+        document.body.appendChild(refreshIndicator);
+        
+        const toggleButton = document.getElementById('toggleActivityUpdates');
+        const statusIcon = refreshIndicator.querySelector('.fa-sync-alt');
+        
+        // Toggle updates
+        toggleButton.addEventListener('click', function() {
+            updatesEnabled = !updatesEnabled;
+            if (updatesEnabled) {
+                toggleButton.textContent = 'OFF';
+                refreshIndicator.style.background = '#28a745';
+                statusIcon.classList.add('fa-spin');
+                startActivityUpdates();
+            } else {
+                toggleButton.textContent = 'ON';
+                refreshIndicator.style.background = '#6c757d';
+                statusIcon.classList.remove('fa-spin');
+                clearInterval(activityUpdateInterval);
+            }
+        });
+        
+        async function fetchAgentActivity() {
+            if (!updatesEnabled) return;
+            
+            try {
+                const response = await fetch('/api/agents/activity_list/');
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const agents = await response.json();
+                
+                agents.forEach(agent => {
+                    // 1. Update Status Badge
+                    const statusCell = document.getElementById(`status-cell-${agent.id}`);
+                    if (statusCell) {
+                        let statusHtml = '';
+                        if (agent.is_online) {
+                            if (agent.status === 'available') {
+                                statusHtml = `<span class="badge bg-success"><i class="fas fa-circle fa-xs me-1"></i> Online</span>`;
+                            } else if (agent.status === 'busy') {
+                                statusHtml = `<span class="badge bg-warning text-dark"><i class="fas fa-circle fa-xs me-1"></i> Busy</span>`;
+                            } else if (agent.status === 'on_break') {
+                                statusHtml = `<span class="badge bg-info text-dark"><i class="fas fa-coffee me-1"></i> On Break</span>`;
+                            } else {
+                                statusHtml = `<span class="badge bg-secondary"><i class="fas fa-circle fa-xs me-1"></i> ${agent.status}</span>`;
+                            }
+                        } else {
+                            statusHtml = `<span class="badge badge-offline" style="background-color: #6c757d; color: white; border-radius: 12px; padding: 4px 10px; font-size: 11px;"><i class="fas fa-circle fa-xs me-1"></i> Offline</span>`;
+                        }
+                        statusCell.innerHTML = statusHtml;
+                    }
+                    
+                    // 2. Update Login/Logout Times
+                    const loginCell = document.getElementById(`login-time-${agent.id}`);
+                    if (loginCell) {
+                        loginCell.textContent = agent.login_time || '-';
+                    }
+                    
+                    const logoutCell = document.getElementById(`logout-time-${agent.id}`);
+                    if (logoutCell) {
+                        logoutCell.textContent = agent.logout_time || '-';
+                    }
+                    
+                    // 3. Update Breaks
+                    const breaksCell = document.getElementById(`breaks-cell-${agent.id}`);
+                    if (breaksCell) {
+                        if (agent.breaks && agent.breaks.length > 0) {
+                            let breaksHtml = '<div class="d-flex flex-column gap-1">';
+                            agent.breaks.forEach(brk => {
+                                const activeClass = brk.is_active ? 'text-primary fw-bold' : 'text-muted';
+                                const endText = brk.end ? `- ${brk.end} (${brk.duration}m)` : `- Now (${brk.duration}m)`;
+                                breaksHtml += `
+                                    <small class="${activeClass}">
+                                        <i class="fas fa-clock fa-xs"></i> 
+                                        ${brk.start} ${endText}
+                                    </small>
+                                `;
+                            });
+                            breaksHtml += `
+                                <div class="border-top mt-1 pt-1">
+                                    <small class="fw-bold">Total: ${agent.total_break_minutes}m</small>
+                                </div>
+                            </div>`;
+                            breaksCell.innerHTML = breaksHtml;
+                        } else {
+                            breaksCell.innerHTML = '<span class="text-muted">-</span>';
+                        }
+                    }
+                    
+                    // 4. Update Actions
+                    const actionsCell = document.getElementById(`actions-cell-${agent.id}`);
+                    if (actionsCell) {
+                        if (agent.is_online) {
+                            let actionsHtml = `
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-danger" onclick="forceLogout(${agent.id}, '${agent.full_name}')" title="Force Logout">
+                                        <i class="fas fa-sign-out-alt"></i> Logout
+                                    </button>
+                            `;
+                            
+                            if (!agent.is_on_break) {
+                                actionsHtml += `
+                                    <button class="btn btn-outline-info" onclick="forceBreak(${agent.id}, '${agent.full_name}')" title="Force Break">
+                                        <i class="fas fa-coffee"></i> Break
+                                    </button>
+                                `;
+                            } else {
+                                actionsHtml += `
+                                    <button class="btn btn-outline-success" onclick="endBreak(${agent.id}, '${agent.full_name}')" title="End Break">
+                                        <i class="fas fa-play"></i> End Break
+                                    </button>
+                                `;
+                            }
+                            actionsHtml += `</div>`;
+                            actionsCell.innerHTML = actionsHtml;
+                        } else {
+                            actionsCell.innerHTML = `
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-secondary" disabled>
+                                        <i class="fas fa-ban"></i> Offline
+                                    </button>
+                                </div>
+                            `;
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error fetching agent activity:', error);
+            }
+        }
+        
+        function startActivityUpdates() {
+            if (activityUpdateInterval) clearInterval(activityUpdateInterval);
+            fetchAgentActivity(); // Initial fetch
+            activityUpdateInterval = setInterval(fetchAgentActivity, 5000); // Poll every 5 seconds
+        }
+        
+        // Start on page load
+        startActivityUpdates();
+    });
+</script>
+{% endblock %}

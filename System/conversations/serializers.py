@@ -99,7 +99,8 @@ class AgentSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_id', 'max_capacity', 'current_active_tickets',
             'is_online', 'status', 'total_messages_sent', 'total_messages_received',
             'is_on_break', 'break_started_at', 'total_break_minutes_today',  # ✅ حقول الاستراحة
-            'available_capacity', 'is_available', 'created_at', 'updated_at'
+            'available_capacity', 'is_available', 'created_at', 'updated_at',
+            'perm_no_choice', 'perm_consultation', 'perm_complaint', 'perm_medicine', 'perm_follow_up'
         ]
         read_only_fields = [
             'id', 'current_active_tickets', 'total_messages_sent',
@@ -468,7 +469,7 @@ class GlobalTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = GlobalTemplate
         fields = [
-            'id', 'name', 'content', 'category', 'is_active',
+            'id', 'name', 'content', 'category', 'priority', 'is_active',
             'created_by', 'created_by_name', 'updated_by', 'updated_by_name',
             'created_at', 'updated_at'
         ]
@@ -663,6 +664,7 @@ class SystemSettingsSerializer(serializers.ModelSerializer):
             'assignment_algorithm',
             'delay_threshold_minutes',
             'default_max_capacity',
+            'welcome_message',
             'work_start_time',
             'work_end_time',
             'updated_at'

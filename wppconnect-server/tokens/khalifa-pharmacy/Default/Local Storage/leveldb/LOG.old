@@ -1,3 +1,6 @@
-2025/11/27-17:46:30.630 2010 Reusing MANIFEST C:\khalefa_Whats\khalefa_Whats\wppconnect-server\tokens\khalifa-pharmacy\Default\Local Storage\leveldb/MANIFEST-000001
-2025/11/27-17:46:30.635 2010 Recovering log #6
-2025/11/27-17:46:30.637 2010 Reusing old log C:\khalefa_Whats\khalefa_Whats\wppconnect-server\tokens\khalifa-pharmacy\Default\Local Storage\leveldb/000006.log 
+2025/11/27-17:55:07.950 45a0 Reusing MANIFEST C:\khalefa_Whats\khalefa_Whats\wppconnect-server\tokens\khalifa-pharmacy\Default\Local Storage\leveldb/MANIFEST-000001
+2025/11/27-17:55:07.956 45a0 Recovering log #6
+2025/11/27-17:55:07.957 45a0 Reusing old log C:\khalefa_Whats\khalefa_Whats\wppconnect-server\tokens\khalifa-pharmacy\Default\Local Storage\leveldb/000006.log 
+2025/11/27-18:39:09.299 3eec Level-0 table #10: started
+2025/11/27-18:39:09.306 3eec Level-0 table #10: 12094 bytes OK
+2025/11/27-18:39:09.309 3eec Delete type=0 #6

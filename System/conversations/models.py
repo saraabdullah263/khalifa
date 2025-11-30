@@ -36,12 +36,13 @@ class User(models.Model):
         ('qa', 'QA (Quality Assurance)'),
         ('supervisor', 'Supervisor'),
         ('manager', 'Manager'),
+        ('agent_supervisor', 'Agent Supervisor'),
     ]
     
     username = models.CharField(max_length=100, unique=True)
     email = models.EmailField(max_length=100, null=True, blank=True)
     password_hash = models.CharField(max_length=255)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     full_name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, null=True, blank=True)
     
@@ -125,6 +126,13 @@ class Agent(models.Model):
     # Counters
     total_messages_sent = models.IntegerField(default=0)
     total_messages_received = models.IntegerField(default=0)
+
+    # Permissions
+    perm_no_choice = models.BooleanField(default=False)
+    perm_consultation = models.BooleanField(default=False)
+    perm_complaint = models.BooleanField(default=False)
+    perm_medicine = models.BooleanField(default=False)
+    perm_follow_up = models.BooleanField(default=False)
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -549,9 +557,16 @@ class GlobalTemplate(models.Model):
     """
     القوالب العامة (Admin فقط)
     """
+    PRIORITY_CHOICES = [
+        ('high', 'High'),
+        ('normal', 'Normal'),
+        ('low', 'Low'),
+    ]
+    
     name = models.CharField(max_length=255)
     content = models.TextField()
     category = models.CharField(max_length=100, null=True, blank=True)
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='normal')
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(Admin, on_delete=models.CASCADE, related_name='created_templates')
     updated_by = models.ForeignKey(Admin, on_delete=models.SET_NULL, null=True, blank=True, related_name='updated_templates')
@@ -565,6 +580,7 @@ class GlobalTemplate(models.Model):
         indexes = [
             models.Index(fields=['is_active']),
             models.Index(fields=['category']),
+            models.Index(fields=['priority']),
         ]
 
     def __str__(self):
@@ -891,6 +907,17 @@ class SystemSettings(models.Model):
     
     # Agent Settings
     default_max_capacity = models.IntegerField(default=10)
+    
+    # Welcome Message
+    welcome_message = models.TextField(
+        default="""🌟 مرحباً بك في صيدليات خليفة! 
+👋 نحن سعداء لخدمتك
+يرجى اختيار نوع الخدمة المطلوبة:
+1 شكوى أو استفسار
+2 طلب أدوية
+3 متابعة طلب سابق
+يرجى الرد برقم الخيار المطلوب (1، 2، أو 3) 📝"""
+    )
     
     # Working Hours
     work_start_time = models.TimeField(default='09:00')

@@ -21,7 +21,7 @@ from .models import (
     LoginAttempt
 )
 from .permissions import IsAdmin, IsAgent
-from .utils import generate_ticket_number
+from .utils import generate_ticket_number, log_activity
 
 
 # ============================================
@@ -31,9 +31,9 @@ from .utils import generate_ticket_number
 def has_admin_access(user):
     """
     Check if user has admin-level access
-    Includes: admin, qa, manager, supervisor
+    Includes: admin, qa, manager, supervisor, agent_supervisor
     """
-    return user.role in ['admin', 'qa', 'manager', 'supervisor']
+    return user.role in ['admin', 'qa', 'manager', 'supervisor', 'agent_supervisor']
 
 
 # ============================================
@@ -101,6 +101,15 @@ def login_view(request):
                 success=True
             )
 
+            # تسجيل النشاط
+            log_activity(
+                user=user,
+                action='login',
+                entity_type='user',
+                entity_id=user.id,
+                request=request
+            )
+
             messages.success(request, f'مرحباً {user.full_name or user.username}!')
 
             # إعادة التوجيه حسب الدور
@@ -140,6 +149,15 @@ def logout_view(request):
             user.agent.is_online = False
             user.agent.status = 'offline'
             user.agent.save(update_fields=['is_online', 'status'])
+
+        # تسجيل النشاط
+        log_activity(
+            user=user,
+            action='logout',
+            entity_type='user',
+            entity_id=user.id,
+            request=request
+        )
 
     auth_logout(request)
     messages.success(request, 'تم تسجيل الخروج بنجاح')
@@ -222,7 +240,12 @@ def admin_agents(request):
         messages.error(request, 'ليس لديك صلاحية للوصول لهذه الصفحة')
         return redirect('agent-conversations')
     
-    users = User.objects.filter(role__in=['agent', 'supervisor', 'qa', 'manager']).prefetch_related('agent').all()
+    # ✅ منع المشرفين من الوصول لهذه الصفحة
+    if request.user.role in ['supervisor', 'agent_supervisor']:
+        messages.error(request, 'ليس لديك صلاحية للوصول لهذه الصفحة')
+        return redirect('admin-dashboard')
+    
+    users = User.objects.filter(role__in=['agent', 'supervisor', 'qa', 'manager', 'agent_supervisor']).prefetch_related('agent').all()
     
     for user in users:
         if user.role != 'agent':
@@ -321,7 +344,12 @@ def admin_templates(request):
         messages.error(request, 'ليس لديك صلاحية للوصول لهذه الصفحة')
         return redirect('agent-conversations')
 
-    templates = GlobalTemplate.objects.filter(is_active=True).order_by('category', 'name')
+    # ✅ منع المشرفين من الوصول لهذه الصفحة
+    if request.user.role in ['supervisor', 'agent_supervisor']:
+        messages.error(request, 'ليس لديك صلاحية للوصول لهذه الصفحة')
+        return redirect('admin-dashboard')
+
+    templates = GlobalTemplate.objects.filter(is_active=True).order_by('-updated_at')
 
     return render(request, 'admin/templates.html', {
         'templates': templates
@@ -337,6 +365,11 @@ def admin_reports(request):
     if not has_admin_access(request.user):
         messages.error(request, 'ليس لديك صلاحية للوصول لهذه الصفحة')
         return redirect('agent-conversations')
+
+    # ✅ منع المشرفين من الوصول لهذه الصفحة
+    if request.user.role in ['supervisor', 'agent_supervisor']:
+        messages.error(request, 'ليس لديك صلاحية للوصول لهذه الصفحة')
+        return redirect('admin-dashboard')
 
     # تقارير الموظفين
     agents_kpi = AgentKPI.objects.select_related('agent__user').filter(
@@ -358,7 +391,96 @@ def admin_settings(request):
         messages.error(request, 'ليس لديك صلاحية للوصول لهذه الصفحة')
         return redirect('agent-conversations')
     
+    # ✅ منع المشرفين من الوصول لهذه الصفحة
+    if request.user.role in ['supervisor', 'agent_supervisor']:
+        messages.error(request, 'ليس لديك صلاحية للوصول لهذه الصفحة')
+        return redirect('admin-dashboard')
+    
     return render(request, 'admin/settings.html')
+
+
+@login_required
+def admin_agent_management(request):
+    """
+    إدارة الموظفين للمشرفين
+    GET /admin/agent-management/
+    """
+    if not has_admin_access(request.user):
+        messages.error(request, 'ليس لديك صلاحية للوصول لهذه الصفحة')
+        return redirect('agent-conversations')
+    
+    # السماح فقط للمشرفين والمديرين
+    if request.user.role not in ['admin', 'manager', 'supervisor', 'agent_supervisor']:
+        messages.error(request, 'ليس لديك صلاحية للوصول لهذه الصفحة')
+        return redirect('admin-dashboard')
+    
+    from .models import ActivityLog
+    from django.db.models import Q
+    
+    # الحصول على جميع الموظفين
+    agents = Agent.objects.select_related('user').filter(user__is_active=True).order_by('user__full_name')
+    
+    today = timezone.now().date()
+    
+    agents_data = []
+    for agent in agents:
+        # الحصول على نشاط اليوم
+        activities = ActivityLog.objects.filter(
+            created_at__date=today
+        ).filter(
+            Q(user=agent.user, action__in=['login', 'logout']) |
+            Q(entity_type='agent', entity_id=agent.id, action__in=['break_start', 'break_end', 'force_logout'])
+        ).order_by('created_at')
+        
+        # استخراج أوقات الدخول والخروج والاستراحة
+        login_time = None
+        logout_time = None
+        breaks = []
+        current_break_start = None
+        
+        for activity in activities:
+            if activity.action == 'login':
+                # نأخذ أول تسجيل دخول
+                if not login_time:
+                    login_time = timezone.localtime(activity.created_at)
+            elif activity.action in ['logout', 'force_logout']:
+                # نأخذ آخر تسجيل خروج
+                logout_time = timezone.localtime(activity.created_at)
+            elif activity.action == 'break_start':
+                current_break_start = timezone.localtime(activity.created_at)
+            elif activity.action == 'break_end':
+                if current_break_start:
+                    end_time = timezone.localtime(activity.created_at)
+                    duration = (end_time - current_break_start).total_seconds() / 60
+                    breaks.append({
+                        'start': current_break_start,
+                        'end': end_time,
+                        'duration': int(duration)
+                    })
+                    current_break_start = None
+        
+        # إذا كان في استراحة حالياً
+        if agent.is_on_break and agent.break_started_at:
+            break_start = timezone.localtime(agent.break_started_at)
+            duration = (timezone.now() - agent.break_started_at).total_seconds() / 60
+            breaks.append({
+                'start': break_start,
+                'end': None,
+                'duration': int(duration),
+                'is_active': True
+            })
+            
+        agents_data.append({
+            'agent': agent,
+            'login_time': login_time,
+            'logout_time': logout_time,
+            'breaks': breaks,
+            'total_break_minutes': sum(b['duration'] for b in breaks)
+        })
+    
+    return render(request, 'admin/agent_management.html', {
+        'agents_data': agents_data
+    })
 
 
 @login_required

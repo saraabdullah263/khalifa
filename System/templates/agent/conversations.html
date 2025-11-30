@@ -795,7 +795,7 @@
                     <div class="customer-preview">
                         <p class="last-message">{{ conv.customer.phone_number }} 
                             {% if conv.unread_count > 0 %}
-                            <span class="badge bg-danger" style="font-size: 10px; padding: 2px 6px;">{{ conv.unread_count }} {% trans "غير مقروءة" %}</span>
+                            <span class="badge bg-success" style="font-size: 10px; padding: 2px 6px;">{{ conv.unread_count }}</span>
                             {% endif %}
                         </p>
                         {% if conv.has_delayed %}
@@ -876,6 +876,9 @@
                 <div class="message-input-wrapper">
                     <div class="input-actions">
                         <button type="button" onclick="openTemplatesModal()" title="{% trans 'القوالب' %}">
+                            <i class="fas fa-file-alt"></i>
+                        </button>
+                        <button type="button" onclick="openHighPriorityTemplatesModal()" title="{% trans 'القوالب العالية الأولوية' %}" style="color: #ffc107;">
                             <i class="fas fa-file-alt"></i>
                         </button>
                         <button type="button" onclick="openFileUpload()" title="{% trans 'إرفاق صورة' %}">
@@ -1113,7 +1116,7 @@
                 </div>
                 <div class="customer-preview">
                     <p class="last-message">${conv.customer_phone || ''}
-                        ${conv.unread_count > 0 ? `<span class="badge bg-danger" style="font-size: 10px; padding: 2px 6px;">${conv.unread_count} غير مقروءة</span>` : ''}
+                        ${conv.unread_count > 0 ? `<span class="badge bg-success" style="font-size: 10px; padding: 2px 6px;">${conv.unread_count}</span>` : ''}
                     </p>
                     ${conv.is_delayed ? '<span class="badge-delayed-triangle"><i class="fas fa-exclamation-triangle"></i></span>' : ''}
                 </div>
@@ -2276,6 +2279,79 @@
 
         } catch (error) {
             console.error('Error loading templates:', error);
+        }
+    }
+
+    async function openHighPriorityTemplatesModal() {
+        const modalEl = document.getElementById('templatesModal');
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+
+        try {
+            const response = await fetch('/api/global-templates/');
+            const data = await response.json();
+            const allTemplates = data.results || data;
+            const templates = allTemplates.filter(t => t.priority === 'high');
+
+            const container = document.getElementById('templatesList');
+            container.innerHTML = '';
+
+            if (!templates || templates.length === 0) {
+                container.innerHTML = '<div class="alert alert-info"><i class="fas fa-star text-danger"></i> لا توجد قوالب عالية الأولوية متاحة</div>';
+                return;
+            }
+
+            const header = document.createElement('div');
+            header.className = 'alert alert-danger d-flex align-items-center gap-2 mb-3';
+            header.innerHTML = '<i class="fas fa-star"></i><strong>القوالب العالية الأولوية</strong>';
+            container.appendChild(header);
+
+            const grid = document.createElement('div');
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(250px, 1fr))';
+            grid.style.gap = '12px';
+            container.appendChild(grid);
+
+            templates.forEach(template => {
+                const card = document.createElement('div');
+                card.className = 'border rounded p-3 cursor-pointer hover-shadow';
+                card.style.cursor = 'pointer';
+                card.style.transition = 'all 0.2s';
+                card.style.borderLeft = '4px solid #dc3545';
+
+                const titleEl = document.createElement('div');
+                titleEl.className = 'fw-bold mb-2 d-flex align-items-center gap-2';
+                titleEl.innerHTML = `<i class="fas fa-star text-danger"></i>${template.name}`;
+
+                const contentEl = document.createElement('div');
+                contentEl.className = 'text-muted small';
+                contentEl.textContent = template.content.length > 100 ? template.content.substring(0, 100) + '...' : template.content;
+
+                card.appendChild(titleEl);
+                card.appendChild(contentEl);
+
+                card.onclick = () => {
+                    let content = template.content || '';
+                    if (currentAgentName) {
+                        content = content.replace(/\{\s*name\s*\}|\[\[\s*name\s*\]\]/gi, currentAgentName);
+                    }
+                    const textarea = document.getElementById('messageText');
+                    textarea.value = content;
+                    modal.hide();
+                    setTimeout(() => {
+                        textarea.focus();
+                        const len = textarea.value.length;
+                        try { textarea.setSelectionRange(len, len); } catch (e) {}
+                        const inputEvent = new Event('input');
+                        textarea.dispatchEvent(inputEvent);
+                    }, 150);
+                };
+
+                grid.appendChild(card);
+            });
+
+        } catch (error) {
+            console.error('Error loading high priority templates:', error);
         }
     }
 

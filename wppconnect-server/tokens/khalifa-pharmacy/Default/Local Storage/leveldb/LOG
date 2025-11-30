@@ -1,6 +1,21 @@
-2025/11/27-17:55:07.950 45a0 Reusing MANIFEST C:\khalefa_Whats\khalefa_Whats\wppconnect-server\tokens\khalifa-pharmacy\Default\Local Storage\leveldb/MANIFEST-000001
-2025/11/27-17:55:07.956 45a0 Recovering log #6
-2025/11/27-17:55:07.957 45a0 Reusing old log C:\khalefa_Whats\khalefa_Whats\wppconnect-server\tokens\khalifa-pharmacy\Default\Local Storage\leveldb/000006.log 
-2025/11/27-18:39:09.299 3eec Level-0 table #10: started
-2025/11/27-18:39:09.306 3eec Level-0 table #10: 12094 bytes OK
-2025/11/27-18:39:09.309 3eec Delete type=0 #6
+2025/11/30-11:33:53.960 232c Reusing MANIFEST C:\khalefa_Whats\khalefa_Whats\wppconnect-server\tokens\khalifa-pharmacy\Default\Local Storage\leveldb/MANIFEST-000001
+2025/11/30-11:33:53.964 232c Recovering log #9
+2025/11/30-11:33:53.966 232c Reusing old log C:\khalefa_Whats\khalefa_Whats\wppconnect-server\tokens\khalifa-pharmacy\Default\Local Storage\leveldb/000009.log 
+2025/11/30-12:09:55.591 284c Level-0 table #13: started
+2025/11/30-12:09:55.598 284c Level-0 table #13: 12585 bytes OK
+2025/11/30-12:09:55.601 284c Delete type=0 #9
+2025/11/30-14:06:55.603 232c Level-0 table #15: started
+2025/11/30-14:06:55.609 232c Level-0 table #15: 11259 bytes OK
+2025/11/30-14:06:55.611 232c Delete type=0 #12
+2025/11/30-15:53:55.595 284c Level-0 table #17: started
+2025/11/30-15:53:55.602 284c Level-0 table #17: 11379 bytes OK
+2025/11/30-15:53:55.603 284c Delete type=0 #14
+2025/11/30-15:53:55.604 284c Compacting 4@0 + 1@1 files
+2025/11/30-15:53:55.607 284c Generated table #18@0: 27 keys, 3872 bytes
+2025/11/30-15:53:55.607 284c Compacted 4@0 + 1@1 files => 3872 bytes
+2025/11/30-15:53:55.607 284c compacted to: files[ 0 1 1 0 0 0 0 ]
+2025/11/30-15:53:55.608 284c Delete type=2 #7
+2025/11/30-15:53:55.608 284c Delete type=2 #10
+2025/11/30-15:53:55.608 284c Delete type=2 #13
+2025/11/30-15:53:55.608 284c Delete type=2 #15
+2025/11/30-15:53:55.608 284c Delete type=2 #17

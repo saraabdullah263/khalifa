@@ -309,6 +309,63 @@ class UserViewSet(viewsets.ModelViewSet):
             pass
 
     @action(detail=True, methods=['post'])
+    def force_logout(self, request, pk=None):
+        """
+        تسجيل خروج إجباري للموظف
+        POST /api/agents/{id}/force_logout/
+        """
+        agent = self.get_object()
+        user = agent.user
+
+        # التحقق من الصلاحيات (مشرف أو مدير)
+        if request.user.role not in ['admin', 'manager', 'supervisor', 'agent_supervisor']:
+            return Response({
+                'success': False,
+                'error': 'غير مصرح لك بهذا الإجراء'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            # تحديث حالة المستخدم
+            user.is_online = False
+            user.save(update_fields=['is_online'])
+
+            # تحديث حالة الموظف
+            agent.is_online = False
+            agent.status = 'offline'
+            
+            # إذا كان في استراحة، إنهاؤها
+            if agent.is_on_break:
+                agent.is_on_break = False
+                agent.break_started_at = None
+            
+            agent.save()
+
+            # تسجيل النشاط
+            try:
+                log_activity(
+                    user=request.user,
+                    action='force_logout',
+                    entity_type='agent',
+                    entity_id=agent.id,
+                    request=request
+                )
+            except:
+                pass
+
+            serializer = self.get_serializer(agent)
+            return Response({
+                'success': True,
+                'data': serializer.data,
+                'message': f'تم تسجيل خروج الموظف {user.full_name} بنجاح'
+            })
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['post'])
     def reset_password(self, request, pk=None):
         """
         إعادة تعيين كلمة المرور للمستخدم
@@ -370,6 +427,126 @@ class AgentViewSet(viewsets.ModelViewSet):
     serializer_class = AgentSerializer
     permission_classes = [IsAdmin]
 
+    @action(detail=False, methods=['get'])
+    def status_list(self, request):
+        """
+        Get status of all agents for real-time monitoring
+        GET /api/agents/status_list/
+        """
+        agents = Agent.objects.select_related('user').all()
+        data = []
+        
+        for agent in agents:
+            status_display = 'Offline'
+            status_class = 'badge-offline'
+            
+            if agent.is_online:
+                if agent.status == 'available':
+                    status_display = 'Online'
+                    status_class = 'badge-online'
+                else:
+                    status_display = 'Busy'
+                    status_class = 'badge-busy'
+            
+            data.append({
+                'id': agent.id,
+                'user_id': agent.user.id,
+                'is_online': agent.is_online,
+                'status': agent.status,
+                'status_display': status_display,
+                'status_class': status_class,
+                'current_active_tickets': agent.current_active_tickets,
+                'max_capacity': agent.max_capacity
+            })
+            
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def activity_list(self, request):
+        """
+        Get detailed activity status of all agents for supervisor monitoring
+        GET /api/agents/activity_list/
+        """
+        # Check permissions
+        if request.user.role not in ['admin', 'manager', 'supervisor', 'agent_supervisor']:
+             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        agents = Agent.objects.select_related('user').filter(user__is_active=True).order_by('user__full_name')
+        today = timezone.now().date()
+        data = []
+
+        for agent in agents:
+            # Get today's activity
+            activities = ActivityLog.objects.filter(
+                created_at__date=today
+            ).filter(
+                Q(user=agent.user, action__in=['login', 'logout']) |
+                Q(entity_type='agent', entity_id=agent.id, action__in=['break_start', 'break_end', 'force_logout'])
+            ).order_by('created_at')
+            
+            login_time = None
+            logout_time = None
+            breaks = []
+            current_break_start = None
+            
+            for activity in activities:
+                if activity.action == 'login':
+                    if not login_time:
+                        login_time = activity.created_at
+                elif activity.action in ['logout', 'force_logout']:
+                    logout_time = activity.created_at
+                elif activity.action == 'break_start':
+                    current_break_start = activity.created_at
+                elif activity.action == 'break_end':
+                    if current_break_start:
+                        duration = (activity.created_at - current_break_start).total_seconds() / 60
+                        breaks.append({
+                            'start': current_break_start,
+                            'end': activity.created_at,
+                            'duration': int(duration)
+                        })
+                        current_break_start = None
+            
+            # If currently on break
+            if agent.is_on_break and agent.break_started_at:
+                duration = (timezone.now() - agent.break_started_at).total_seconds() / 60
+                breaks.append({
+                    'start': agent.break_started_at,
+                    'end': None,
+                    'duration': int(duration),
+                    'is_active': True
+                })
+            
+            # Format for JSON
+            # Convert to local time before formatting
+            login_str = timezone.localtime(login_time).strftime('%I:%M %p') if login_time else None
+            logout_str = timezone.localtime(logout_time).strftime('%I:%M %p') if logout_time else None
+            
+            breaks_data = []
+            for b in breaks:
+                breaks_data.append({
+                    'start': timezone.localtime(b['start']).strftime('%I:%M %p'),
+                    'end': timezone.localtime(b['end']).strftime('%I:%M %p') if b['end'] else None,
+                    'duration': b['duration'],
+                    'is_active': b.get('is_active', False)
+                })
+
+            data.append({
+                'id': agent.id,
+                'user_id': agent.user.id,
+                'full_name': agent.user.full_name,
+                'username': agent.user.username,
+                'is_online': agent.is_online,
+                'status': agent.status,
+                'is_on_break': agent.is_on_break,
+                'login_time': login_str,
+                'logout_time': logout_str,
+                'breaks': breaks_data,
+                'total_break_minutes': sum(b['duration'] for b in breaks)
+            })
+            
+        return Response(data)
+
     @action(detail=False, methods=['post'])
     def create_with_user(self, request):
         """
@@ -421,7 +598,7 @@ class AgentViewSet(viewsets.ModelViewSet):
                 role = request.data.get('role', 'agent')
                 
                 # التحقق من صحة الدور
-                valid_roles = ['agent', 'admin', 'qa', 'supervisor', 'manager']
+                valid_roles = ['agent', 'admin', 'qa', 'supervisor', 'manager', 'agent_supervisor']
                 if role not in valid_roles:
                     return Response({
                         'success': False,
@@ -465,7 +642,13 @@ class AgentViewSet(viewsets.ModelViewSet):
                         user=user,
                         max_capacity=max_capacity,
                         status=request.data.get('status', 'offline'),
-                        is_online=False
+                        is_online=False,
+                        # ✅ إضافة الصلاحيات
+                        perm_no_choice=request.data.get('perm_no_choice', False),
+                        perm_consultation=request.data.get('perm_consultation', False),
+                        perm_complaint=request.data.get('perm_complaint', False),
+                        perm_medicine=request.data.get('perm_medicine', False),
+                        perm_follow_up=request.data.get('perm_follow_up', False)
                     )
                     entity_type = 'agent'
                     entity_id = agent.id
@@ -503,7 +686,8 @@ class AgentViewSet(viewsets.ModelViewSet):
                     'admin': 'المدير',
                     'qa': 'مراقب الجودة',
                     'supervisor': 'المشرف',
-                    'manager': 'المدير العام'
+                    'manager': 'المدير العام',
+                    'agent_supervisor': 'مشرف الموظفين'
                 }
                 return Response({
                     'success': True,
@@ -878,6 +1062,63 @@ class AgentViewSet(viewsets.ModelViewSet):
                 'success': False,
                 'error': f'حدث خطأ أثناء إنهاء الاستراحة: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def force_logout(self, request, pk=None):
+        """
+        تسجيل خروج إجباري للموظف
+        POST /api/agents/{id}/force_logout/
+        """
+        agent = self.get_object()
+        user = agent.user
+
+        # التحقق من الصلاحيات (مشرف أو مدير)
+        if request.user.role not in ['admin', 'manager', 'supervisor', 'agent_supervisor']:
+            return Response({
+                'success': False,
+                'error': 'غير مصرح لك بهذا الإجراء'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            # تحديث حالة المستخدم
+            user.is_online = False
+            user.save(update_fields=['is_online'])
+
+            # تحديث حالة الموظف
+            agent.is_online = False
+            agent.status = 'offline'
+            
+            # إذا كان في استراحة، إنهاؤها
+            if agent.is_on_break:
+                agent.is_on_break = False
+                agent.break_started_at = None
+            
+            agent.save()
+
+            # تسجيل النشاط
+            try:
+                log_activity(
+                    user=request.user,
+                    action='force_logout',
+                    entity_type='agent',
+                    entity_id=agent.id,
+                    request=request
+                )
+            except:
+                pass
+
+            serializer = self.get_serializer(agent)
+            return Response({
+                'success': True,
+                'data': serializer.data,
+                'message': f'تم تسجيل خروج الموظف {user.full_name} بنجاح'
+            })
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'])
     def reset_password(self, request, pk=None):

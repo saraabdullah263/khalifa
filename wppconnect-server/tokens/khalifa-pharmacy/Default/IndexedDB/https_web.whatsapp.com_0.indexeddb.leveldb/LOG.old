@@ -1,13 +1,13 @@
-2025/11/27-17:46:32.376 660c Reusing MANIFEST C:\khalefa_Whats\khalefa_Whats\wppconnect-server\tokens\khalifa-pharmacy\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
-2025/11/27-17:46:32.376 660c Recovering log #84
-2025/11/27-17:46:32.382 660c Reusing old log C:\khalefa_Whats\khalefa_Whats\wppconnect-server\tokens\khalifa-pharmacy\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000084.log 
-2025/11/27-17:46:33.401 5a0 Level-0 table #89: started
-2025/11/27-17:46:33.405 5a0 Level-0 table #89: 228621 bytes OK
-2025/11/27-17:46:33.406 5a0 Delete type=0 #84
-2025/11/27-17:46:33.407 22cc Manual compaction at level-0 from '\x00%\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00&\x00\x00\x00' @ 0 : 0; will stop at (end)
-2025/11/27-17:46:34.504 660c Compacting 1@1 + 1@2 files
-2025/11/27-17:46:34.531 660c Generated table #90@1: 39669 keys, 1544959 bytes
-2025/11/27-17:46:34.531 660c Compacted 1@1 + 1@2 files => 1544959 bytes
-2025/11/27-17:46:34.532 660c compacted to: files[ 0 0 1 0 0 0 0 ]
-2025/11/27-17:46:34.532 660c Delete type=2 #86
-2025/11/27-17:46:34.532 660c Delete type=2 #89
+2025/11/27-17:55:09.609 f0c Reusing MANIFEST C:\khalefa_Whats\khalefa_Whats\wppconnect-server\tokens\khalifa-pharmacy\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/11/27-17:55:09.609 f0c Recovering log #88
+2025/11/27-17:55:09.615 f0c Reusing old log C:\khalefa_Whats\khalefa_Whats\wppconnect-server\tokens\khalifa-pharmacy\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000088.log 
+2025/11/27-17:55:10.642 f0c Level-0 table #93: started
+2025/11/27-17:55:10.646 f0c Level-0 table #93: 198275 bytes OK
+2025/11/27-17:55:10.647 f0c Delete type=0 #88
+2025/11/27-17:55:10.648 f0c Manual compaction at level-0 from '\x00&\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00'\x00\x00\x00' @ 0 : 0; will stop at (end)
+2025/11/27-17:55:11.570 3bbc Compacting 1@1 + 1@2 files
+2025/11/27-17:55:11.597 3bbc Generated table #94@1: 41298 keys, 1598781 bytes
+2025/11/27-17:55:11.597 3bbc Compacted 1@1 + 1@2 files => 1598781 bytes
+2025/11/27-17:55:11.598 3bbc compacted to: files[ 0 0 1 0 0 0 0 ]
+2025/11/27-17:55:11.598 3bbc Delete type=2 #90
+2025/11/27-17:55:11.598 3bbc Delete type=2 #93

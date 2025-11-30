@@ -20,6 +20,7 @@ from conversations.views_frontend import (
     admin_settings,
     admin_monitor_agent,
     admin_monitor_agent_conversation,
+    admin_agent_management,  # ✅ إضافة الاستيراد
     
     # Agent Views
     agent_conversations,
@@ -37,6 +38,7 @@ urlpatterns = [
     # Admin Pages
     path('admin/dashboard/', admin_dashboard, name='admin-dashboard'),
     path('admin/agents/', admin_agents, name='admin-agents'),
+    path('admin/agent-management/', admin_agent_management, name='admin-agent-management'),  # ✅ صفحة إدارة الموظفين الجديدة
     path('admin/customers/', admin_customers, name='admin-customers'),
     path('admin/tickets/', admin_tickets, name='admin-tickets'),
     path('admin/templates/', admin_templates, name='admin-templates'),

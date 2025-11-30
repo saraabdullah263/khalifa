@@ -427,13 +427,9 @@ def send_welcome_message(customer, ticket=None):
         logger = logging.getLogger(__name__)
         
         # رسالة الترحيب
-        welcome_text = """🌟 مرحباً بك في صيدليات خليفة! 
-👋 نحن سعداء لخدمتك
-يرجى اختيار نوع الخدمة المطلوبة:
-1 شكوى أو استفسار
-2 طلب أدوية
-3 متابعة طلب سابق
-يرجى الرد برقم الخيار المطلوب (1، 2، أو 3) 📝"""
+        from .models import SystemSettings
+        system_settings = SystemSettings.get_settings()
+        welcome_text = system_settings.welcome_message
         
         # العثور على التذكرة إذا لم يتم تمريرها
         if not ticket:
