@@ -13,9 +13,11 @@
         <i class="fas fa-ticket-alt"></i> {% trans "جميع التذاكر" %}
     </h4>
     <div>
+        {% if user.role != 'supervisor' and user.role != 'agent_supervisor' %}
         <button class="btn btn-danger" onclick="closeAllOpenTickets()" title="{% trans 'إغلاق جميع التذاكر المفتوحة' %}">
             <i class="fas fa-times-circle"></i> {% trans "إغلاق جميع التذاكر المفتوحة" %}
         </button>
+        {% endif %}
     </div>
 </div>
 
@@ -205,9 +207,11 @@
                                         {% if not ticket.assigned_agent %}disabled{% endif %}>
                                     <i class="fas fa-exchange-alt"></i>
                                 </button>
+                                {% if user.role != 'supervisor' and user.role != 'agent_supervisor' %}
                                 <button class="btn btn-sm btn-outline-success" onclick="closeTicket({{ ticket.id }})" title="Close Ticket">
                                     <i class="fas fa-check"></i>
                                 </button>
+                                {% endif %}
                                 {% endif %}
                             </div>
                         </td>

@@ -412,7 +412,7 @@ def admin_agent_management(request):
         return redirect('agent-conversations')
     
     # السماح فقط للمشرفين والمديرين
-    if request.user.role not in ['admin', 'manager', 'supervisor', 'agent_supervisor']:
+    if request.user.role not in ['admin', 'manager', 'supervisor']:
         messages.error(request, 'ليس لديك صلاحية للوصول لهذه الصفحة')
         return redirect('admin-dashboard')
     

@@ -65,7 +65,7 @@
                             </a>
                         </li>
                         
-                        {% if user.role == 'supervisor' or user.role == 'agent_supervisor' %}
+                        {% if user.role == 'supervisor' %}
                         <li class="sidebar-menu-item">
                             <a href="{% url 'admin-agent-management' %}" class="sidebar-menu-link {% if request.resolver_match.url_name == 'admin-agent-management' %}active{% endif %}">
                                 <i class="fas fa-users-cog sidebar-menu-icon"></i>

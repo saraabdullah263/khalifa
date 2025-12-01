@@ -2122,12 +2122,27 @@
                 // تحديث قائمة المحادثات
                 refreshConversationsList();
             } else {
-                throw new Error('Failed to close ticket');
+                // Try to parse error message
+                let errorMessage = 'Failed to close ticket';
+                try {
+                    const data = await response.json();
+                    if (data.error) {
+                        errorMessage = data.error;
+                    }
+                } catch (e) {
+                    console.error('Error parsing error response:', e);
+                }
+                throw new Error(errorMessage);
             }
 
         } catch (error) {
             console.error('Error closing ticket:', error);
-            khalifaPharmacy.showToast('حدث خطأ أثناء إغلاق التذكرة', 'error');
+            
+            if (error.message === 'التذكرة مغلقة بالفعل') {
+                khalifaPharmacy.showToast('the ticket is already closed', 'error');
+            } else {
+                khalifaPharmacy.showToast('حدث خطأ أثناء إغلاق التذكرة', 'error');
+            }
         }
     }
 

@@ -8,5 +8,6 @@
                 "postgresql://localhost/mydb"
             ]
         }
-    }
+    },
+    "kiroAgent.configureMCP": "Disabled"
 }
