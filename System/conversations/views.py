@@ -473,12 +473,28 @@ class AgentViewSet(viewsets.ModelViewSet):
 
         agents = Agent.objects.select_related('user').filter(user__is_active=True).order_by('user__full_name')
         today = timezone.now().date()
+        date_from_str = request.GET.get('date_from')
+        date_to_str = request.GET.get('date_to')
+        if date_from_str:
+            try:
+                date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date()
+            except ValueError:
+                date_from = today
+        else:
+            date_from = today
+        if date_to_str:
+            try:
+                date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date()
+            except ValueError:
+                date_to = today
+        else:
+            date_to = today
+        includes_today = (date_from <= today <= date_to)
         data = []
 
         for agent in agents:
-            # Get today's activity
             activities = ActivityLog.objects.filter(
-                created_at__date=today
+                created_at__date__range=[date_from, date_to]
             ).filter(
                 Q(user=agent.user, action__in=['login', 'logout']) |
                 Q(entity_type='agent', entity_id=agent.id, action__in=['break_start', 'break_end', 'force_logout'])
@@ -507,15 +523,16 @@ class AgentViewSet(viewsets.ModelViewSet):
                         })
                         current_break_start = None
             
-            # If currently on break
-            if agent.is_on_break and agent.break_started_at:
-                duration = (timezone.now() - agent.break_started_at).total_seconds() / 60
-                breaks.append({
-                    'start': agent.break_started_at,
-                    'end': None,
-                    'duration': int(duration),
-                    'is_active': True
-                })
+            if includes_today and agent.is_on_break and agent.break_started_at:
+                bs_date = agent.break_started_at.date()
+                if date_from <= bs_date <= date_to:
+                    duration = (timezone.now() - agent.break_started_at).total_seconds() / 60
+                    breaks.append({
+                        'start': agent.break_started_at,
+                        'end': None,
+                        'duration': int(duration),
+                        'is_active': True
+                    })
             
             # Format for JSON
             # Convert to local time before formatting

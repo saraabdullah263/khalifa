@@ -254,7 +254,12 @@
     // ✅ Real-time Activity Updates
     document.addEventListener('DOMContentLoaded', function() {
         let activityUpdateInterval;
-        let updatesEnabled = true;
+        const dateFromInput = document.querySelector('input[name="date_from"]');
+        const dateToInput = document.querySelector('input[name="date_to"]');
+        const dateFromVal = dateFromInput ? dateFromInput.value : '';
+        const dateToVal = dateToInput ? dateToInput.value : '';
+        const todayStr = '{{ today }}';
+        let updatesEnabled = (dateFromVal && dateToVal) ? (dateFromVal <= todayStr && dateToVal >= todayStr) : true;
         
         // Create status indicator
         const refreshIndicator = document.createElement('div');
@@ -275,7 +280,7 @@
             gap: 6px;
         `;
         refreshIndicator.innerHTML = `
-            <i class="fas fa-sync-alt fa-spin" style="font-size: 10px;"></i>
+            <i class="fas fa-sync-alt ${updatesEnabled ? 'fa-spin' : ''}" style="font-size: 10px;"></i>
             <span id="activityStatusText" style="font-size: 10px;">Live Updates</span>
             <button id="toggleActivityUpdates" style="
                 background: rgba(255,255,255,0.3);
@@ -286,14 +291,13 @@
                 cursor: pointer;
                 font-size: 9px;
                 font-weight: bold;
-            ">OFF</button>
+            ">${updatesEnabled ? 'OFF' : 'ON'}</button>
         `;
         document.body.appendChild(refreshIndicator);
         
         const toggleButton = document.getElementById('toggleActivityUpdates');
         const statusIcon = refreshIndicator.querySelector('.fa-sync-alt');
         
-        // Toggle updates
         toggleButton.addEventListener('click', function() {
             updatesEnabled = !updatesEnabled;
             if (updatesEnabled) {
@@ -313,7 +317,10 @@
             if (!updatesEnabled) return;
             
             try {
-                const response = await fetch('/api/agents/activity_list/');
+                const params = new URLSearchParams();
+                if (dateFromVal) params.append('date_from', dateFromVal);
+                if (dateToVal) params.append('date_to', dateToVal);
+                const response = await fetch(`/api/agents/activity_list/?${params.toString()}`);
                 if (!response.ok) throw new Error('Network response was not ok');
                 
                 const agents = await response.json();
@@ -425,8 +432,12 @@
             activityUpdateInterval = setInterval(fetchAgentActivity, 5000); // Poll every 5 seconds
         }
         
-        // Start on page load
-        startActivityUpdates();
+        if (updatesEnabled) {
+            refreshIndicator.style.background = '#28a745';
+            startActivityUpdates();
+        } else {
+            refreshIndicator.style.background = '#6c757d';
+        }
     });
 </script>
 {% endblock %}

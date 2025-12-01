@@ -525,6 +525,7 @@ def admin_agent_management(request):
         'agents_data': agents_data,
         'date_from': date_from.strftime('%Y-%m-%d'),
         'date_to': date_to.strftime('%Y-%m-%d'),
+        'today': today.strftime('%Y-%m-%d'),
     })
 
 
